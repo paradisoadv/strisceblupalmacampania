@@ -1,0 +1,33 @@
+STRISCE BLU PALMA CAMPANIA - INSTALLAZIONE
+
+1) BACKEND GOOGLE SHEETS (necessario per non pubblicare il database delle targhe)
+- Apri script.google.com con l'account che può leggere il foglio.
+- Crea un nuovo progetto.
+- Incolla il contenuto di Code.gs.
+- Imposta il fuso orario Europe/Rome nelle impostazioni progetto.
+- Distribuisci > Nuova distribuzione > Tipo: App web.
+- Esegui come: te stesso.
+- Accesso: chiunque disponga del link (la web app restituisce solo il record della targa richiesta, non l'intero foglio).
+- Autorizza l'accesso al foglio e copia l'URL della Web App.
+
+2) FRONTEND
+- Apri index.html con un editor di testo.
+- Cerca: INCOLLA_QUI_URL_WEB_APP_GOOGLE_APPS_SCRIPT
+- Sostituiscilo con l'URL ottenuto al punto 1.
+- Salva.
+
+3) PUBBLICAZIONE GRATUITA
+- Carica index.html e brand.jpg nella stessa cartella dello spazio web.
+- Per Netlify puoi trascinare direttamente la cartella del sito nella funzione di deploy manuale.
+- In alternativa puoi usare Cloudflare Pages o GitHub Pages.
+- Il sito DEVE essere servito in HTTPS per un uso affidabile della fotocamera su smartphone.
+
+4) USO
+- Apri il sito da smartphone.
+- Tocca SCATTA FOTO ALLA TARGA.
+- L'OCR tenta di compilare automaticamente la targa.
+- Correggi eventualmente la targa e premi VERIFICA ABBONAMENTO.
+- La risposta mostra ATTIVO / SCADUTO / NON ABBONATO, tipologia e scadenza.
+
+NOTA PRIVACY/SICUREZZA
+Non inserire mai l'intero elenco delle targhe nel JavaScript pubblico. La soluzione fornita interroga il foglio lato Apps Script per una singola targa.
