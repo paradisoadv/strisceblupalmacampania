@@ -1,48 +1,112 @@
-// Google Apps Script - da collegare al Google Sheet degli abbonamenti.
-// Pubblicare come: Distribuisci > Nuova distribuzione > App web.
-const SPREADSHEET_ID = '1x8Yx2sU4M_GD4OM3w1vlcqz-cW-tx8XZ';
+const SPREADSHEET_ID = "1x8Yx2sU4M_GD4OM3w1vlcqz-cW-tx8XZ";
+const CACHE_SECONDS = 300; // 5 minuti
 
 function doGet(e) {
-  const targa = normalizza(e.parameter.targa || '');
-  const out = cercaTarga(targa);
-  return ContentService.createTextOutput(JSON.stringify(out))
+  try {
+    const targa = normalizza_(e && e.parameter ? e.parameter.targa : "");
+    if (!targa) return json_({ok:false, error:"Targa mancante"});
+
+    const cache = CacheService.getScriptCache();
+    const cacheKey = "plate_" + targa;
+    const cached = cache.get(cacheKey);
+    if (cached) return ContentService.createTextOutput(cached).setMimeType(ContentService.MimeType.JSON);
+
+    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    const sheets = ss.getSheets();
+    let risultato = {ok:true, found:false, plate:targa};
+
+    for (const sh of sheets) {
+      const lastRow = sh.getLastRow();
+      const lastCol = sh.getLastColumn();
+      if (lastRow < 3 || lastCol < 5) continue;
+
+      // Legge solo la colonna E (targa), dalla riga 3 in poi.
+      const plates = sh.getRange(3, 5, lastRow - 2, 1).getDisplayValues();
+      let idx = -1;
+      for (let i = 0; i < plates.length; i++) {
+        if (normalizza_(plates[i][0]) === targa) {
+          idx = i + 3;
+          break;
+        }
+      }
+      if (idx < 0) continue;
+
+      // Legge una sola riga, soltanto quando trova la targa.
+      const row = sh.getRange(idx, 1, 1, lastCol).getDisplayValues()[0];
+
+      // Struttura del foglio: J:M Residenti/Docenti/Studenti,
+      // N:Q Commercianti/Lavoratori, R ISEE, S Spendo a Palma,
+      // T Non residenti, U Residenti nella zona, W/X validità.
+      const categorie = [
+        ["RESIDENTI/DOCENTI/STUDENTI - MENSILE", 9],
+        ["RESIDENTI/DOCENTI/STUDENTI - TRIMESTRALE", 10],
+        ["RESIDENTI/DOCENTI/STUDENTI - SEMESTRALE", 11],
+        ["RESIDENTI/DOCENTI/STUDENTI - ANNUALE", 12],
+        ["COMMERCIANTI/LAVORATORI - MENSILE", 13],
+        ["COMMERCIANTI/LAVORATORI - TRIMESTRALE", 14],
+        ["COMMERCIANTI/LAVORATORI - SEMESTRALE", 15],
+        ["COMMERCIANTI/LAVORATORI - ANNUALE", 16],
+        ["AGEVOLAZIONE ISEE - ANNUALE", 17],
+        ["SPENDO A PALMA - ANNUALE", 18],
+        ["NON RESIDENTI - ANNUALE", 19],
+        ["RESIDENTI NELLA ZONA - ANNUALE", 20]
+      ];
+
+      let tipo = "ABBONAMENTO";
+      for (const [nome, col] of categorie) {
+        if (row[col] !== undefined && String(row[col]).trim() !== "") {
+          tipo = nome;
+          break;
+        }
+      }
+
+      const expiryRaw = row[23] || ""; // X = AL
+      const expiryDate = parseDate_(expiryRaw);
+      const today = new Date();
+      today.setHours(0,0,0,0);
+
+      risultato = {
+        ok:true,
+        found:true,
+        active: expiryDate ? expiryDate >= today : true,
+        plate:targa,
+        type:tipo,
+        expiry:formatDate_(expiryDate, expiryRaw)
+      };
+      break;
+    }
+
+    const payload = JSON.stringify(risultato);
+    cache.put(cacheKey, payload, CACHE_SECONDS);
+    return ContentService.createTextOutput(payload).setMimeType(ContentService.MimeType.JSON);
+  } catch (err) {
+    return json_({ok:false, found:false, error:String(err && err.message ? err.message : err)});
+  }
+}
+
+function normalizza_(v) {
+  return String(v || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+}
+
+function parseDate_(v) {
+  if (!v) return null;
+  if (Object.prototype.toString.call(v) === "[object Date]" && !isNaN(v)) return v;
+  const s = String(v).trim();
+  let m = s.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})$/);
+  if (m) return new Date(+m[3], +m[2]-1, +m[1]);
+  m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (m) return new Date(+m[1], +m[2]-1, +m[3]);
+  const d = new Date(s);
+  return isNaN(d) ? null : d;
+}
+
+function formatDate_(d, fallback) {
+  if (!d) return fallback || "—";
+  return Utilities.formatDate(d, Session.getScriptTimeZone() || "Europe/Rome", "dd/MM/yyyy");
+}
+
+function json_(obj) {
+  return ContentService
+    .createTextOutput(JSON.stringify(obj))
     .setMimeType(ContentService.MimeType.JSON);
-}
-
-function normalizza(v){ return String(v||'').toUpperCase().replace(/[^A-Z0-9]/g,''); }
-function fmt(d){ return Utilities.formatDate(new Date(d), Session.getScriptTimeZone() || 'Europe/Rome', 'dd/MM/yyyy'); }
-
-function cercaTarga(targa){
-  if(!targa) return {found:false};
-  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-  for (const sh of ss.getSheets()) {
-    const values = sh.getDataRange().getValues();
-    if(values.length < 3) continue;
-    // Struttura osservata: riga 1 categorie, riga 2 sottocategorie; targa colonna F; DAL/AL ultime colonne.
-    for(let r=2;r<values.length;r++){
-      const row=values[r];
-      if(normalizza(row[5]) !== targa) continue;
-      const expiry=row[23] || row[row.length-1];
-      const start=row[22] || row[row.length-2];
-      const type=tipoAbbonamento(values[0], values[1], row);
-      const expDate=expiry ? new Date(expiry) : null;
-      const now=new Date(); now.setHours(0,0,0,0);
-      const active=!!expDate && expDate >= now;
-      return {found:true, active, plate:targa, type:type, start:start?fmt(start):'', expiry:expiry?fmt(expiry):''};
-    }
-  }
-  return {found:false, plate:targa};
-}
-
-function tipoAbbonamento(top, sub, row){
-  // Colonne tariffarie J:U (indici 9..20). Cerca la cella valorizzata e combina categoria + durata.
-  let lastTop='';
-  for(let c=0;c<top.length;c++){
-    if(String(top[c]).trim()) lastTop=String(top[c]).trim();
-    if(c>=9 && c<=20 && row[c]!=='' && row[c]!=null){
-      const s=String(sub[c]||'').trim();
-      return [lastTop,s].filter(Boolean).join(' - ');
-    }
-  }
-  return 'Abbonamento';
 }
