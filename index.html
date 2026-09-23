@@ -1,8 +1,202 @@
-<!doctype html><html lang='it'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1,viewport-fit=cover'><meta name='theme-color' content='#09a3db'><title>Controllo Abbonamenti | Strisce Blu</title><style>*{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;background:#f4f7f9;color:#123}.app{max-width:520px;margin:auto;min-height:100vh;background:white}.hero{background:#09a3db;color:white;padding:22px 22px 28px;text-align:center}.hero img{width:100%;max-height:220px;object-fit:cover;object-position:top;border-radius:18px}.hero h1{font-size:25px;margin:18px 0 4px}.hero p{margin:0;opacity:.9}.main{padding:22px}.camera{border:2px dashed #b9ddea;border-radius:18px;padding:18px;text-align:center;background:#f8fdff}.camera input{display:none}.btn{display:block;width:100%;border:0;border-radius:14px;padding:16px;font-size:17px;font-weight:700;cursor:pointer;margin-top:12px}.primary{background:#09a3db;color:white}.secondary{background:#eaf7fc;color:#057ca8}.plate{width:100%;font-size:28px;text-transform:uppercase;text-align:center;letter-spacing:3px;padding:14px;border:2px solid #cddde5;border-radius:14px;margin-top:16px}.hint{font-size:13px;color:#667;text-align:center;margin:8px}.result{display:none;margin-top:20px;border-radius:18px;padding:22px;text-align:center}.ok{background:#e9f8ee;border:2px solid #2eae5b}.no{background:#fff0f0;border:2px solid #e43b3b}.warn{background:#fff8e6;border:2px solid #e8a400}.status{font-size:25px;font-weight:800}.bigplate{font-size:30px;font-weight:800;letter-spacing:3px;margin:12px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}.card{background:#fff;border-radius:12px;padding:12px}.label{font-size:12px;color:#667;text-transform:uppercase}.value{font-weight:800;margin-top:4px}.foot{text-align:center;font-size:12px;color:#889;padding:24px}.loader{display:none;text-align:center;margin:15px}</style></head><body><div class='app'><div class='hero'><img src='brand.jpg' alt='Strisce Blu Palma Campania'><h1>Controllo Abbonamenti</h1><p>Servizio sosta a pagamento</p></div><div class='main'><div class='camera'><b>Fotografa la targa del veicolo</b><label class='btn primary' for='photo'>📷 SCATTA FOTO ALLA TARGA</label><input id='photo' type='file' accept='image/*' capture='environment'><div class='hint'>La targa riconosciuta potrà essere corretta manualmente.</div></div><input id='plate' class='plate' placeholder='AB123CD' maxlength='10'><button id='check' class='btn primary'>VERIFICA ABBONAMENTO</button><button id='ocr' class='btn secondary'>LEGGI TARGA DALLA FOTO</button><div id='loader' class='loader'>Lettura in corso…</div><div id='result' class='result'></div></div><div class='foot'>Comune di Palma Campania · Strisce Blu</div></div><script src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js'></script><script>
-const CONFIG={API_URL:'https://script.google.com/macros/s/AKfycbxL7Kc7AgXdAfRWaex_envKzsBOX-j2tND6oMHVnRMgWrT7Msy_Cz4Fayq3sf-2hWFoLw/exec'};
-const $=id=>document.getElementById(id);let photo=null;
-function norm(s){return (s||'').toUpperCase().replace(/[^A-Z0-9]/g,'')}
-$('photo').onchange=e=>{photo=e.target.files[0]||null;if(photo) $('ocr').click()};
-$('ocr').onclick=async()=>{if(!photo)return alert('Scatta prima una foto.');$('loader').style.display='block';try{const r=await Tesseract.recognize(photo,'eng');const candidates=(r.data.text.toUpperCase().match(/[A-Z]{2}\s*\d{3}\s*[A-Z]{2}/g)||[]);if(candidates.length)$('plate').value=norm(candidates[0]);else alert('Targa non riconosciuta. Inseriscila manualmente.')}catch(e){alert('Impossibile leggere la foto. Inserisci la targa manualmente.')}finally{$('loader').style.display='none'}};
-$('check').onclick=async()=>{const p=norm($('plate').value);if(p.length<5)return alert('Inserisci una targa valida.');$('plate').value=p;const box=$('result');box.style.display='block';box.className='result warn';box.innerHTML='<div class="status">VERIFICA…</div>';if(CONFIG.API_URL.startsWith('INCOLLA_')){box.innerHTML='<div class="status">⚙️ CONFIGURAZIONE NECESSARIA</div><p>Inserisci nel file index.html l’URL della Web App Google Apps Script.</p>';return}try{const res=await fetch(CONFIG.API_URL+'?targa='+encodeURIComponent(p));const d=await res.json();if(!d.found){box.className='result no';box.innerHTML=`<div class="status">✕ NON ABBONATO</div><div class="bigplate">${p}</div><p>Nessun abbonamento trovato per questa targa.</p>`;return}const active=d.active;box.className='result '+(active?'ok':'no');box.innerHTML=`<div class="status">${active?'✓ ABBONAMENTO ATTIVO':'✕ ABBONAMENTO SCADUTO'}</div><div class="bigplate">${p}</div><div class="grid"><div class="card"><div class="label">Tipologia</div><div class="value">${d.type||'—'}</div></div><div class="card"><div class="label">Scadenza</div><div class="value">${d.expiry||'—'}</div></div></div>`}catch(e){box.className='result warn';box.innerHTML='<div class="status">ERRORE DI CONNESSIONE</div><p>Impossibile interrogare il database.</p>'}};
-</script></body></html>
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#09a3db">
+<title>Controllo Abbonamenti | Strisce Blu</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,sans-serif;background:#f4f7f9;color:#123}
+.app{max-width:520px;margin:auto;min-height:100vh;background:#fff}
+.hero{background:#09a3db;color:#fff;padding:22px 22px 28px;text-align:center}
+.hero img{width:100%;max-height:220px;object-fit:cover;object-position:top;border-radius:18px}
+.hero h1{font-size:25px;margin:18px 0 4px}
+.hero p{margin:0;opacity:.9}
+.main{padding:22px}
+.camera{border:2px dashed #b9ddea;border-radius:18px;padding:18px;text-align:center;background:#f8fdff}
+.camera input{display:none}
+.btn{display:block;width:100%;border:0;border-radius:14px;padding:16px;font-size:17px;font-weight:700;cursor:pointer;margin-top:12px}
+.primary{background:#09a3db;color:#fff}
+.secondary{background:#eaf7fc;color:#057ca8}
+.plate{width:100%;font-size:28px;text-transform:uppercase;text-align:center;letter-spacing:3px;padding:14px;border:2px solid #cddde5;border-radius:14px;margin-top:16px}
+.hint{font-size:13px;color:#667;text-align:center;margin:8px}
+.result{display:none;margin-top:20px;border-radius:18px;padding:22px;text-align:center}
+.ok{background:#e9f8ee;border:2px solid #2eae5b}
+.no{background:#fff0f0;border:2px solid #e43b3b}
+.warn{background:#fff8e6;border:2px solid #e8a400}
+.status{font-size:25px;font-weight:800}
+.bigplate{font-size:30px;font-weight:800;letter-spacing:3px;margin:12px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+.card{background:#fff;border-radius:12px;padding:12px}
+.label{font-size:12px;color:#667;text-transform:uppercase}
+.value{font-weight:800;margin-top:4px}
+.foot{text-align:center;font-size:12px;color:#889;padding:24px}
+.loader{display:none;text-align:center;margin:16px 0;padding:14px;border-radius:12px;background:#eaf7fc;color:#057ca8;font-weight:700}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="hero">
+    <img src="brand.jpg" alt="Strisce Blu Palma Campania">
+    <h1>Controllo Abbonamenti</h1>
+    <p>Servizio sosta a pagamento</p>
+  </div>
+
+  <div class="main">
+    <div class="camera">
+      <b>Fotografa la targa del veicolo</b>
+      <label class="btn primary" for="photo">📷 SCATTA FOTO ALLA TARGA</label>
+      <input id="photo" type="file" accept="image/*" capture="environment">
+      <div class="hint">Dopo lo scatto la targa viene letta e verificata automaticamente.</div>
+    </div>
+
+    <input id="plate" class="plate" placeholder="AB123CD" maxlength="10">
+    <button id="check" class="btn primary">VERIFICA ABBONAMENTO</button>
+
+    <div id="loader" class="loader"></div>
+    <div id="result" class="result"></div>
+  </div>
+
+  <div class="foot">Comune di Palma Campania · Strisce Blu</div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<script>
+const CONFIG = {
+  API_URL: 'https://script.google.com/macros/s/AKfycbxL7Kc7AgXdAfRWaex_envKzsBOX-j2tND6oMHVnRMgWrT7Msy_Cz4Fayq3sf-2hWFoLw/exec'
+};
+
+const $ = id => document.getElementById(id);
+let photo = null;
+
+function norm(s) {
+  return (s || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+}
+
+function setLoader(text) {
+  const el = $('loader');
+  if (text) {
+    el.textContent = text;
+    el.style.display = 'block';
+  } else {
+    el.style.display = 'none';
+  }
+}
+
+function findPlate(text) {
+  const cleaned = (text || '').toUpperCase();
+
+  // Formato italiano più comune: 2 lettere + 3 numeri + 2 lettere.
+  const matches = cleaned.match(/[A-Z]{2}\s*[-.]?\s*\d{3}\s*[-.]?\s*[A-Z]{2}/g) || [];
+  if (matches.length) return norm(matches[0]);
+
+  // Secondo tentativo su righe OCR ripulite.
+  const tokens = cleaned
+    .split(/\s+/)
+    .map(norm)
+    .filter(Boolean);
+
+  for (const token of tokens) {
+    if (/^[A-Z]{2}\d{3}[A-Z]{2}$/.test(token)) return token;
+  }
+  return '';
+}
+
+async function verificaAbbonamento() {
+  const p = norm($('plate').value);
+
+  if (p.length < 5) {
+    alert('Inserisci una targa valida.');
+    return;
+  }
+
+  $('plate').value = p;
+  const box = $('result');
+  box.style.display = 'block';
+  box.className = 'result warn';
+  box.innerHTML = '<div class="status">VERIFICA IN CORSO…</div>';
+
+  try {
+    const res = await fetch(CONFIG.API_URL + '?targa=' + encodeURIComponent(p));
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+
+    const d = await res.json();
+
+    if (!d.found) {
+      box.className = 'result no';
+      box.innerHTML =
+        '<div class="status">✕ NON ABBONATO</div>' +
+        '<div class="bigplate">' + p + '</div>' +
+        '<p>Nessun abbonamento trovato per questa targa.</p>';
+      return;
+    }
+
+    const active = !!d.active;
+    box.className = 'result ' + (active ? 'ok' : 'no');
+    box.innerHTML =
+      '<div class="status">' +
+      (active ? '✓ ABBONAMENTO ATTIVO' : '✕ ABBONAMENTO SCADUTO') +
+      '</div>' +
+      '<div class="bigplate">' + p + '</div>' +
+      '<div class="grid">' +
+        '<div class="card">' +
+          '<div class="label">Tipologia</div>' +
+          '<div class="value">' + (d.type || '—') + '</div>' +
+        '</div>' +
+        '<div class="card">' +
+          '<div class="label">Scadenza</div>' +
+          '<div class="value">' + (d.expiry || '—') + '</div>' +
+        '</div>' +
+      '</div>';
+  } catch (err) {
+    box.className = 'result warn';
+    box.innerHTML =
+      '<div class="status">ERRORE DI CONNESSIONE</div>' +
+      '<p>Impossibile interrogare il database.</p>';
+  }
+}
+
+async function leggiEVerificaFoto() {
+  if (!photo) return;
+
+  $('result').style.display = 'none';
+  setLoader('📷 Lettura della targa in corso…');
+
+  try {
+    const r = await Tesseract.recognize(photo, 'eng');
+    const plate = findPlate(r.data.text);
+
+    if (!plate) {
+      setLoader('');
+      alert('Targa non riconosciuta. Inseriscila manualmente nel campo e premi VERIFICA ABBONAMENTO.');
+      $('plate').focus();
+      return;
+    }
+
+    $('plate').value = plate;
+    setLoader('✓ Targa riconosciuta: ' + plate + ' · verifica abbonamento…');
+
+    // Verifica automatica immediatamente dopo il riconoscimento OCR.
+    await verificaAbbonamento();
+  } catch (err) {
+    alert('Impossibile leggere la foto. Inserisci la targa manualmente.');
+    $('plate').focus();
+  } finally {
+    setLoader('');
+  }
+}
+
+$('photo').onchange = e => {
+  photo = e.target.files[0] || null;
+  if (photo) leggiEVerificaFoto();
+};
+
+$('check').onclick = verificaAbbonamento;
+
+$('plate').addEventListener('keydown', e => {
+  if (e.key === 'Enter') verificaAbbonamento();
+});
+</script>
+</body>
+</html>
