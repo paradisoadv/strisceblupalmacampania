@@ -55,7 +55,7 @@ async function login(){
  const pin=$("pin").value.trim(); if(!pin){$("loginerr").textContent="Inserisci la password.";return}
  $("loginBtn").disabled=true;$("loginerr").textContent="Verifica…";
  try{
-  const r=await fetch(API_URL+"?action=login&pin="+encodeURIComponent(pin)+"&_="+Date.now(),{cache:"no-store"});
+  const r=await fetch(API_URL+"?action=login&pin="+encodeURIComponent(pin)+"&_="+Date.now(),{cache:"no-store",redirect:"follow"});
   const d=await r.json();
   if(d.authorized){ACCESS_PIN=pin;$("login").style.display="none";$("loginerr").textContent="";startCamera()}
   else $("loginerr").textContent="Password errata.";
@@ -80,7 +80,7 @@ for(let i=0;i<d.length;i+=4){let gray=.299*d[i]+.587*d[i+1]+.114*d[i+2];gray=(gr
 function candidates(text){const raw=(text||"").toUpperCase(),out=[],compact=norm(raw),exact=raw.match(/[A-Z]{2}\s*[-.]?\s*\d{3}\s*[-.]?\s*[A-Z]{2}/g)||[];exact.forEach(x=>out.push(norm(x)));for(let i=0;i<=compact.length-7;i++){const x=compact.slice(i,i+7);if(/^[A-Z]{2}\d{3}[A-Z]{2}$/.test(x))out.push(x)}return[...new Set(out)]}
 async function verify(p){
  p=norm(p);if(!p)return false;$("plate").value=p;msg("Verifica "+p+"…");const b=$("result");b.style.display="block";b.className="result warn";b.innerHTML='<div class="title">VERIFICA…</div>';
- try{const r=await fetch(API_URL+"?targa="+encodeURIComponent(p)+"&pin="+encodeURIComponent(ACCESS_PIN)+"&_="+Date.now(),{cache:"no-store"});const d=await r.json();
+ try{const r=await fetch(API_URL+"?targa="+encodeURIComponent(p)+"&pin="+encodeURIComponent(ACCESS_PIN)+"&_="+Date.now(),{cache:"no-store",redirect:"follow"});const d=await r.json();
  if(!d.authorized){ACCESS_PIN="";$("login").style.display="flex";$("pin").value="";$("loginerr").textContent="Password non valida. Accedi nuovamente.";b.style.display="none";return false}
  if(!d.found){b.className="result no";b.innerHTML='<div class="title">✕ NON ABBONATO</div><div class="big">'+p+'</div>'}
  else{b.className="result "+(d.active?"ok":"no");b.innerHTML='<div class="title">'+(d.active?"✓ ABBONAMENTO ATTIVO":"✕ ABBONAMENTO SCADUTO")+'</div><div class="big">'+p+'</div>'+
